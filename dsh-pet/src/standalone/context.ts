@@ -106,6 +106,11 @@ export function createStandaloneContext(options: StandaloneContextOptions): Stan
 
   const context: Record<string, unknown> = {
     /**
+     * dsh-pet-claude: marks the pseudo ctx as standalone. There is no DSH session
+     * stream here, so the host takes the Claude Code session source instead.
+     */
+    standalone: true,
+    /**
      * 与 Cordis 同语义：跑一次注册函数并收集它返回的释放函数。
      * 单项失败按 DSH 的 effect 隔离口径处理：记录 + 打日志，不让整个插件起不来
      * （源码形态下包内 assets 不可达时，正是这里会抛）。

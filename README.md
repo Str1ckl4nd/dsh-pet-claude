@@ -1,3 +1,32 @@
+# dsh-pet-claude
+
+> **这是 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) 的 fork。** 宠物本体、动画、素材管线和绝大部分代码都是上游的成果。本 fork 只做适配：把它接到 **Claude Code** 上，让它像 Codex 的桌面宠物那样显示会话状态。这是独立的改造，不向上游提 PR，会定期合并上游更新。
+>
+> **A fork of [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet).** The pet, its animations, the asset pipeline and almost all of the code are upstream's work. This fork adapts it to **Claude Code** so it shows session state the way Codex's desktop pet does. It is a separate adaptation, not meant to be merged upstream.
+
+### 改了什么
+
+- 独立模式下读取 Claude Code 自己维护的会话状态文件 `~/.claude/sessions/<pid>.json`（会话标题与 `busy` / `waiting` / `idle`）。不装 hook，不改 Claude Code。
+- 气泡只有三种状态：正在工作 / 需要审批 / 已经完成。多个会话同时存在时，审批优先。
+- 左上角徽标：有会话完成时变绿。点徽标展开或收起会话列表，会话开始工作时自动展开。完成的行打 ✓，点任意一行跳到 Claude 桌面应用里的对应会话。右键菜单保持上游原样。
+- 已读：完成后在侧栏切到该会话，或把 Claude 窗口切回前台时正停在该会话上，才算读过，这一行随即消失。会话完成时你正停在它上面不算读过。Windows 上靠一个很小的前台窗口监听器判断（`fgwatch.cs`，首次运行用系统自带的 .NET Framework `csc.exe` 编译到 `~/.dsh/dsh-pet/`）。
+
+```sh
+cd dsh-pet
+pnpm install
+pnpm run build
+pnpm run standalone            # http://127.0.0.1:3080/dsh-pet-7340/
+```
+
+- `DSH_PET_CLAUDE=off`：关闭 Claude Code 会话源，回到上游行为。
+- `DSH_PET_CLAUDE_LANG=zh|en`：标签语言，默认跟随系统。
+- 只在独立模式生效，在 DSH 里运行时仍按上游逻辑工作。只列出 Claude 桌面应用里的会话。在 Windows 上实测，macOS 路径已写但未测试。
+- 许可与上游相同：代码 MIT，动画素材非商用（见下文）。
+
+以下为上游 README 原文。
+
+---
+
 # dsh-pet 🐾
 
 <p align="center">

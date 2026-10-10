@@ -89,6 +89,154 @@
         transition: opacity 0.25s ease;
         white-space: nowrap;
       }
+      /* dsh-pet-claude: one column anchored at the pet's top-left body corner and
+         grown upward. column-reverse puts the badge at the bottom and the
+         panel above it, so the two can never overlap whatever their heights —
+         which they did when each carried its own percentage offset. */
+      .pet-stack {
+        position: absolute;
+        z-index: 5;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        gap: calc(var(--pet-size, 462px) * 0.016);
+        transform: translateY(-100%);
+        pointer-events: none;
+      }
+      /* dsh-pet-claude: status badge — the resting indicator.
+         Coloured by the worst state on the board: any error wins, then any
+         completed, otherwise resting. */
+      .pet-badge {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--pet-size, 462px) * 0.014);
+        padding: calc(var(--pet-size, 462px) * 0.011) calc(var(--pet-size, 462px) * 0.022);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow:
+          0 calc(var(--pet-size, 462px) * 0.005) calc(var(--pet-size, 462px) * 0.018) rgba(0, 0, 0, 0.16),
+          0 1px 2px rgba(0, 0, 0, 0.08);
+        font-family: 'Segoe UI Variable Text','Segoe UI','Microsoft YaHei UI','PingFang SC',system-ui,sans-serif;
+        font-size: calc(var(--pet-size, 462px) * 0.028);
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        white-space: nowrap;
+        color: #2b2b2b;
+        pointer-events: none;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .pet-badge.is-on {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .pet-badge:hover {
+        background: rgba(255, 255, 255, 1);
+      }
+      /* The badge is the panel's toggle, Codex-style: the chevron shows which
+         way a press will go. */
+      .pet-badge-chev {
+        opacity: 0.55;
+        font-size: 0.85em;
+        margin-left: calc(var(--pet-size, 462px) * 0.004);
+      }
+      .pet-badge-dot {
+        width: calc(var(--pet-size, 462px) * 0.02);
+        height: calc(var(--pet-size, 462px) * 0.02);
+        border-radius: 50%;
+        background: #8b96a5;
+      }
+      .pet-badge.is-error .pet-badge-dot {
+        background: #e5484d;
+      }
+      .pet-badge.is-success .pet-badge-dot {
+        background: #30a46c;
+      }
+      /* dsh-pet-claude: the panel that pops on success / failure / approval.
+         Rows are clickable and jump to that session in the Claude app. */
+      /* Hidden with display, not opacity: an opacity-0 flex child still takes
+         its row and would push the badge down off the pet. */
+      .pet-panel {
+        display: none;
+        min-width: calc(var(--pet-size, 462px) * 0.44);
+        max-width: calc(var(--pet-size, 462px) * 0.78);
+        padding: calc(var(--pet-size, 462px) * 0.014);
+        border-radius: calc(var(--pet-size, 462px) * 0.022);
+        background: rgba(255, 255, 255, 0.97);
+        box-shadow:
+          0 calc(var(--pet-size, 462px) * 0.008) calc(var(--pet-size, 462px) * 0.03) rgba(0, 0, 0, 0.2),
+          0 1px 3px rgba(0, 0, 0, 0.1);
+        font-family: 'Segoe UI Variable Text','Segoe UI','Microsoft YaHei UI','PingFang SC',system-ui,sans-serif;
+        font-size: calc(var(--pet-size, 462px) * 0.03);
+        line-height: 1.45;
+        color: #2b2b2b;
+        pointer-events: auto;
+      }
+      .pet-panel.is-on {
+        display: block;
+      }
+      /* While the panel is up it says everything the badge and the bubble do,
+         and all three live in the same strip above the pet's head. */
+      .pet-sprite.panel-on .pet-bubble {
+        display: none;
+      }
+      /* A finished session gets a check where the dot was. */
+      .pet-panel-check {
+        flex: 0 0 auto;
+        width: calc(var(--pet-size, 462px) * 0.018);
+        text-align: center;
+        color: #30a46c;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .pet-panel-row {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--pet-size, 462px) * 0.016);
+        padding: calc(var(--pet-size, 462px) * 0.014) calc(var(--pet-size, 462px) * 0.018);
+        border-radius: calc(var(--pet-size, 462px) * 0.014);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .pet-panel-row:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      .pet-panel-dot {
+        flex: 0 0 auto;
+        width: calc(var(--pet-size, 462px) * 0.018);
+        height: calc(var(--pet-size, 462px) * 0.018);
+        border-radius: 50%;
+        background: #8b96a5;
+      }
+      .pet-panel-row.is-error .pet-panel-dot {
+        background: #e5484d;
+      }
+      .pet-panel-row.is-success .pet-panel-dot {
+        background: #30a46c;
+      }
+      .pet-panel-row.is-waiting .pet-panel-dot {
+        background: #f5a524;
+      }
+      .pet-panel-name {
+        font-weight: 600;
+      }
+      .pet-panel-detail {
+        color: rgba(43, 43, 43, 0.62);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      /* dsh-pet-claude: the work bubble is one short sentence of mixed Chinese
+         and ASCII. dsh-pet's whisper variant breaks anywhere, which splits
+         tokens like "Bash" down the middle; wrap between words instead, and
+         give it room so a normal line does not wrap at all. */
+      .pet-bubble.is-whisper {
+        max-width: calc(var(--pet-size, 462px) * 0.72);
+        overflow-wrap: break-word;
+        word-break: normal;
+        line-break: strict;
+        text-align: left;
+      }
       .pet-bubble::after {
         content: '';
         position: absolute;

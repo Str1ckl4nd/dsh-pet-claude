@@ -160,6 +160,35 @@ class PetSprite {
     stage.appendChild(this.videoA);
     stage.appendChild(this.videoB);
     stage.appendChild(this.hit);
+    /* dsh-pet-claude */ this.badge = document.createElement('div');
+    this.badge.className = 'pet-badge';
+    this.badgeDot = document.createElement('span');
+    this.badgeDot.className = 'pet-badge-dot';
+    this.badgeText = document.createElement('span');
+    this.badgeChev = document.createElement('span');
+    this.badgeChev.className = 'pet-badge-chev';
+    this.badgeChev.textContent = '▴';
+    this.badge.appendChild(this.badgeDot);
+    this.badge.appendChild(this.badgeText);
+    this.badge.appendChild(this.badgeChev);
+    this.badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.togglePanel();
+    });
+    this.panel = document.createElement('div');
+    this.panel.className = 'pet-panel';
+    this.stack = document.createElement('div');
+    this.stack.className = 'pet-stack';
+    this.stack.style.left = this.hitRect.x + 'px';
+    this.stack.style.top = this.hitRect.y + 'px';
+    this.stack.appendChild(this.badge);
+    this.stack.appendChild(this.panel);
+    this.panelOpen = false;
+    this.panelKey = null;
+    this.overStack = false;
+    this.prevMoods = {};
+    this.dismissed = new Set();
+    this.el.appendChild(this.stack);
     this.el.appendChild(this.bubble);
     this.el.appendChild(this.tip);
     this.el.appendChild(stage);
@@ -171,7 +200,9 @@ class PetSprite {
     this.ac = ac;
     this.hit.addEventListener('pointerdown', (e) => this.onPointerDown(e), { signal: ac.signal });
     this.hit.addEventListener('pointermove', (e) => this.onPointerMove(e), { signal: ac.signal });
+    /* dsh-pet-claude */ this.hit.addEventListener('click', () => this.togglePanel(), { signal: ac.signal });
     this.hit.addEventListener('click', () => this.onClick(), { signal: ac.signal });
+    window.addEventListener('blur', () => this.closeMenu(), { signal: ac.signal });
     this.hit.addEventListener('contextmenu', (e) => this.onContextMenu(e), { signal: ac.signal });
     window.addEventListener('pointerup', (e) => this.onPointerUp(e), { signal: ac.signal });
     window.addEventListener('pointercancel', (e) => this.onPointerUp(e), { signal: ac.signal });
@@ -187,6 +218,8 @@ class PetSprite {
         // 拖拽中与对话弹窗开着都不恢复：前者会绕过 busy 造成穿透并丢失 pointerup，
         // 后者要留光标回来点输入框。
         this.closeMenu();
+        /* dsh-pet-claude */ this.overStack = false;
+        this.syncInputBusy();
         if (!this.chatOpen && !this.dragState.active) this.setInteractive(false);
       },
       { signal: ac.signal },
@@ -958,7 +991,7 @@ class PetSprite {
    * 位移分不清"拖拽跟手"和"漫游/抛掷"）。所以由渲染端上报，主进程的兜底通道据此闭嘴。
    */
   inputBusy() {
-    return this.dragState.active || this.menuOpen || this.chatOpen;
+    return this.dragState.active || this.menuOpen || this.chatOpen || /* dsh-pet-claude */ this.overStack;
   }
 
   /**
@@ -1064,7 +1097,16 @@ class PetSprite {
     // 光标位置存**视口坐标**（窗口原点 + 窗口内坐标）：窗口随宠物移动时贴光标不会漂，见 renderTip。
     // 必须在 setTip 之前更新：setTip 变显隐时会立刻渲染一次，晚一步就会用上一次的光标摆位。
     if (inBody) this.tipCursor = { x: this.pos.x - this.margin.l + wx, y: this.pos.y - this.margin.t + wy };
-    this.setInteractive(inBody);
+    /* dsh-pet-claude */ let overStack = false;
+    if (this.stack && this.badge.classList.contains('is-on')) {
+      const b = this.stack.getBoundingClientRect();
+      overStack = wx >= b.left && wx <= b.right && wy >= b.top && wy <= b.bottom;
+    }
+    if (overStack !== this.overStack) {
+      this.overStack = overStack;
+      this.syncInputBusy();
+    }
+    this.setInteractive(inBody || overStack);
     // 悬浮提示与可交互判定同源（同一个 inBody）：光标进身体 → 提示出现，离开 → 收起
     this.setTip(inBody);
     // 跟随光标：位置依赖光标，所以每次移动都得重摆一次（setTip 只在显隐变化时才渲染）
@@ -1117,6 +1159,13 @@ class PetSprite {
     return { x: vx0 - winX, y: vy0 - winY, w, h };
   }
 
+  togglePanel() {
+    const d = this.dragState;
+    if (d.active || d.dragging || this.justDragged || this.menuOpen) return;
+    if (this.panelOpen) this.closePanel();
+    else this.openPanel();
+  }
+
   onContextMenu(e) {
     const d = this.dragState;
     if (d.active || d.dragging || this.justDragged || this.menuOpen) return;
@@ -1135,7 +1184,11 @@ class PetSprite {
       // 放在最后：它是"重新加载"这类维护动作，与上面几个宠物互动项语义不同。
       { label: '重载配置', action: 'reload' },
     );
-    const tree = tools.concat(S.buildMenuTree(this.animations));
+    /* dsh-pet-claude */ const cards = Array.isArray(this.sessionCards) ? this.sessionCards : [];
+    const sessions = cards.length
+      ? [{ label: '会话状态', children: cards.map((c) => ({ label: c.name + ' — ' + c.detail })) }]
+      : [{ label: '会话状态', children: [{ label: '(没有活跃会话)' }] }];
+    const tree = sessions.concat(tools, S.buildMenuTree(this.animations));
     if (!tree.length) return;
     this.menuOpen = true;
     this.setInteractive(true); // 菜单是窗口内 DOM：悬停期间整窗保持可交互，关闭后恢复命中区穿透
@@ -1298,7 +1351,149 @@ class PetSprite {
     });
   }
 
+  /* dsh-pet-claude */ // The board minus finishes you have already acknowledged by clicking
+  // them. Keyed by link and finish time, so the session's NEXT finish shows.
+  visibleCards() {
+    const cards = Array.isArray(this.sessionCards) ? this.sessionCards : [];
+    const live = new Set(cards.map((c) => c.link + '@' + c.doneAt));
+    for (const k of this.dismissed) if (!live.has(k)) this.dismissed.delete(k);
+    return cards.filter((c) => !(c.mood === 'success' && this.dismissed.has(c.link + '@' + c.doneAt)));
+  }
+
+  renderBadge() {
+    if (!this.badge) return;
+    const cards = this.visibleCards();
+    if (!cards.length) {
+      this.badge.classList.remove('is-on');
+      this.liftBubble();
+      return;
+    }
+    const hasError = cards.some((c) => c && c.mood === 'error');
+    const hasDone = cards.some((c) => c && c.mood === 'success');
+    this.badge.classList.toggle('is-error', hasError);
+    this.badge.classList.toggle('is-success', !hasError && hasDone);
+    this.badgeText.textContent = cards.length === 1 ? cards[0].name : cards.length + ' 个会话';
+    this.badge.classList.add('is-on');
+    this.liftBubble();
+  }
+
+  // The bubble is centred above the pet's head and the stack sits at the
+  // body's top-left — the same strip. Lift the bubble by what the stack
+  // actually occupies; a fixed offset cannot track a stack whose size varies.
+  liftBubble() {
+    if (!this.bubble || !this.stack) return;
+    const on = this.badge.classList.contains('is-on') || this.panelOpen;
+    const h = on ? this.stack.offsetHeight + this.size * 0.02 : 0;
+    this.bubble.style.transform = h
+      ? 'translateX(-50%) translateY(-' + Math.round(h) + 'px)'
+      : 'translateX(-50%)';
+  }
+
+  // Codex behaviour: a session starting work (or asking for approval) opens
+  // the list; collapsing it holds until the next such start. Comparing against
+  // the previous moods makes this fire on transitions only, not on every
+  // repaint, so a collapse is never undone by a repaint.
+  renderPanel() {
+    if (!this.panel) return;
+    const cards = this.visibleCards();
+    if (!cards.length) {
+      if (this.panelOpen) this.closePanel();
+      this.prevMoods = {};
+      return;
+    }
+    const next = {};
+    let started = false;
+    for (const c of cards) {
+      const k = c.link || c.name;
+      next[k] = c.mood;
+      // Opening on a finish is the reminder; on a start or an approval, the
+      // Codex behaviour. Either way only on the transition, never a repaint.
+      if (this.prevMoods[k] !== c.mood && (c.mood === 'working' || c.mood === 'waiting' || c.mood === 'success')) started = true;
+    }
+    this.prevMoods = next;
+    if (started && !this.panelOpen && !this.menuOpen) {
+      this.openPanel();
+      return;
+    }
+    if (this.panelOpen) this.refreshPanel();
+  }
+
+  // Rebuild rows only when the data changed: rebuilding on every repaint can
+  // swap a row out between mousedown and mouseup and swallow the click.
+  refreshPanel() {
+    const key = JSON.stringify(this.visibleCards());
+    if (key === this.panelKey) return;
+    this.panelKey = key;
+    this.buildPanel();
+    this.liftBubble();
+  }
+
+  buildPanel() {
+    const cards = this.visibleCards();
+    this.panel.innerHTML = '';
+    for (const c of cards) {
+      const row = document.createElement('div');
+      row.className = 'pet-panel-row';
+      if (c.mood === 'error') row.classList.add('is-error');
+      else if (c.mood === 'waiting') row.classList.add('is-waiting');
+      const mark = document.createElement('span');
+      if (c.mood === 'success') {
+        mark.className = 'pet-panel-check';
+        mark.textContent = '✓';
+      } else {
+        mark.className = 'pet-panel-dot';
+      }
+      const name = document.createElement('span');
+      name.className = 'pet-panel-name';
+      name.textContent = c.name;
+      const detail = document.createElement('span');
+      detail.className = 'pet-panel-detail';
+      detail.textContent = c.detail;
+      row.appendChild(mark);
+      row.appendChild(name);
+      row.appendChild(detail);
+      if (c.link) {
+        row.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.petBridge) window.petBridge.openSession(c.link);
+          // Jumping to a finished session is reading it: clear its check now
+          // rather than wait for the app to record the focus change.
+          if (c.mood === 'success') {
+            this.dismissed.add(c.link + '@' + c.doneAt);
+            this.renderBadge();
+            this.refreshPanel();
+            if (!this.visibleCards().length) this.closePanel();
+          }
+        });
+      } else {
+        row.style.cursor = 'default';
+      }
+      this.panel.appendChild(row);
+    }
+  }
+
+  openPanel() {
+    this.panelKey = null;
+    this.refreshPanel();
+    this.panel.classList.add('is-on');
+    this.el.classList.add('panel-on');
+    this.panelOpen = true;
+    if (this.badgeChev) this.badgeChev.textContent = '▾';
+    this.liftBubble();
+  }
+
+  closePanel() {
+    if (!this.panel) return;
+    this.panel.classList.remove('is-on');
+    this.el.classList.remove('panel-on');
+    this.panelOpen = false;
+    if (this.badgeChev) this.badgeChev.textContent = '▴';
+    this.liftBubble();
+  }
+
   renderBubble() {
+    this.renderBadge();
+    this.renderPanel();
     // 气泡单槽：同一时刻只显示一个（优先级：终态任务 > 碎碎念/对话 > 余额 > 非终态任务）。
     // 为什么终态任务不让位：完成/失败气泡只活 10s，被事件顶掉就彻底看不到了；非终态任务气泡
     // 常驻（不设自动收起），让位 10s 零损失。与浏览器 src/client/pet.ts 的单槽优先级同一套。

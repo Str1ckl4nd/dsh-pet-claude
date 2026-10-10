@@ -74,6 +74,7 @@ import { generateChat, type ChatMemoryMessage } from './chat';
 import { configuredModel } from './model-selection';
 import { limitPool, pickMeme, readMemePool } from './memes';
 import { decideBroadcast, normalizeBroadcastText } from './broadcast';
+import { defaultLang, startClaudeSessions } from './claude-sessions';
 import { decideAnim } from './anim';
 import {
   findPetInstance,
@@ -1212,6 +1213,27 @@ export function apply(ctx: any): void {
       }),
     'dsh-pet: /dsh-pet-7340 asset route',
   );
+
+  // dsh-pet-claude: standalone mode has no DSH session stream, so Claude Code's
+  // own per-process state files drive the pet instead — sections.workStatus for
+  // the pet itself (rendered by the native work-status path) and
+  // sections.claudeSessions for the session panel. Each is written only when it
+  // changed: every write advances the counter, and the renderer replays on it.
+  // DSH_PET_CLAUDE=off turns the Claude source off (the generic standalone tests do).
+  if (ctx.standalone === true && process.env.DSH_PET_CLAUDE !== 'off') {
+    ctx.effect(
+      () =>
+        startClaudeSessions({
+          userRoot,
+          packageRoot: PACKAGE_ROOT,
+          lang: defaultLang(),
+          log: (message: string) => ctx.logger?.info?.(message),
+          onCards: (cards) => state.writeSection('claudeSessions', { cards }),
+          onAggregate: (a) => state.writeSection('workStatus', { state: a.state, task: a.task }),
+        }),
+      'dsh-pet-claude: Claude Code sessions',
+    );
+  }
 
   // 工作状态联动：监听 DSH 会话事件 → 聚合"当前活动状态"（WorkStatusStore → 展示快照）。
   // 消费的事件：turn/start、user/message（goal 续跑轮判定）、tool/call（update_goal 收尾判定）、

@@ -767,6 +767,17 @@ app.whenReady().then(() => {
   // 右键菜单「打开网站」：交给**系统默认浏览器**打开（等效于网页里 Ctrl+点击链接新标签页），
   // 不建专属窗口——宠物窗口机制是透明小窗，不该承载常规网页浏览。URL 由渲染端从
   // configUrl 推导 = DSH webServer 端口，端口变化自动跟随
+  // dsh-pet-claude: the session panel opens a Claude desktop session by the
+  // deep link the app itself reports. Only claude:// passes; this channel opens
+  // nothing else, and "open site" keeps its own rules.
+  ipcMain.on('pet:open-session', (event, payload) => {
+    const url = payload && typeof payload === 'object' ? String(payload.url || '') : '';
+    if (!/^claude:[/][/]/.test(url)) return;
+    shell.openExternal(url).catch((error) => {
+      console.error('[dsh-pet-desktop-helper] openExternal failed:', error);
+    });
+  });
+
   ipcMain.on('pet:open-site', (event, payload) => {
     const url = payload && typeof payload === 'object' ? String(payload.url || '') : '';
     if (!/^https?:[/][/]/.test(url)) return;

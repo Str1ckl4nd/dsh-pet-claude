@@ -8,7 +8,7 @@
  *
  * 形状：
  *   {
- *     sections: { balance: {counter,data}, workStatus: {…}, notify: {…} },  // 全局，所有端共享
+ *     sections: { balance: {counter,data}, workStatus: {…}, notify: {…}, claudeSessions: {…} },  // 全局，所有端共享
  *     pets: { <宠物id>: { say: {counter,data} } }                           // 每只宠物各自一份
  *   }
  *
@@ -31,7 +31,8 @@ export interface StateLeaf {
 }
 
 /** 全局段（所有端共享一份） */
-export type SectionName = 'balance' | 'workStatus' | 'notify';
+/** `claudeSessions` (dsh-pet-claude): the Claude Code session board, standalone mode only. */
+export type SectionName = 'balance' | 'workStatus' | 'notify' | 'claudeSessions';
 
 /** 每宠物段（say = 要说的话；anim = 要播的动画名） */
 export type PetLeafName = 'say' | 'anim';
@@ -56,7 +57,7 @@ export class PollStateStore {
 
   constructor() {
     this.last = 0;
-    this.sections = { balance: emptyLeaf(), workStatus: emptyLeaf(), notify: emptyLeaf() };
+    this.sections = { balance: emptyLeaf(), workStatus: emptyLeaf(), notify: emptyLeaf(), claudeSessions: emptyLeaf() };
     this.pets = new Map();
   }
 

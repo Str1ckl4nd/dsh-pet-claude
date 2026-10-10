@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld('petBridge', {
   openDshSite(url) {
     ipcRenderer.send('pet:open-site', { url });
   },
+  // dsh-pet-claude: jump to a Claude Code desktop session (claude:// only — enforced in main)
+  openSession(url) {
+    ipcRenderer.send('pet:open-session', { url });
+  },
   // ---- 宠物间碰撞（跨窗 broker）----
   reportFlight(state) {
     ipcRenderer.send('pet:report-flight', state);

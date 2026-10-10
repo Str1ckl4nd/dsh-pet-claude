@@ -238,6 +238,15 @@ function applySayLeaf(petId, leaf) {
 }
 
 /** 工作状态叶子 → 各宠物切档位动画 + 气泡（含回到空闲：state=null 用于收起常驻气泡） */
+/** dsh-pet-claude: the Claude Code session board → every pet's badge and panel. */
+function applyClaudeSessionsLeaf(leaf) {
+  const cards = leaf && leaf.data && Array.isArray(leaf.data.cards) ? leaf.data.cards : [];
+  for (const s of sprites) {
+    s.sessionCards = cards;
+    s.renderBubble();
+  }
+}
+
 function applyWorkStatusLeaf(leaf) {
   const snap = S.toWorkStatus(leaf.data);
   if (!snap) return;
@@ -264,12 +273,24 @@ async function pollStateOnce() {
     if (!s) return;
     if (stateBaseline === null) {
       stateBaseline = S.flattenCounters(s); // 首拉：只记基线，不渲染（避免启动/重载时重放旧气泡）
+      /* dsh-pet-claude: the Claude Code session board, and the work state it
+         drives, are live state rather than events — show what is true now
+         instead of waiting for the next change. claudeSessions is only ever
+         written in standalone Claude mode, so upstream's no-replay behaviour
+         elsewhere is untouched. */
+      const board = s.sections && s.sections.claudeSessions;
+      if (board && board.data !== null && board.data !== undefined) {
+        applyClaudeSessionsLeaf(board);
+        const work = s.sections.workStatus;
+        if (work && work.data !== null && work.data !== undefined) applyWorkStatusLeaf(work);
+      }
       return;
     }
     for (const change of S.takeChanged(s, stateBaseline)) {
       if (change.leaf.data === null) continue;
       if (change.path === 'sections.balance') applyBalanceLeaf(change.leaf);
       else if (change.path === 'sections.workStatus') applyWorkStatusLeaf(change.leaf);
+      else if (change.path === 'sections.claudeSessions') applyClaudeSessionsLeaf(change.leaf); // dsh-pet-claude
       else if (change.path.startsWith('pets.') && change.path.endsWith('.say')) {
         // 宠物 id **允许含点号**：按前缀/后缀切片，绝不 split('.')
         applySayLeaf(change.path.slice('pets.'.length, -'.say'.length), change.leaf);

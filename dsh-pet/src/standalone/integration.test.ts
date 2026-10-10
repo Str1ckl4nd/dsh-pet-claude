@@ -34,11 +34,16 @@ let server: StandaloneServer | undefined;
 let context: ReturnType<typeof createStandaloneContext> | undefined;
 let savedHome: string | undefined;
 let savedElectron: string | undefined;
+let savedClaude: string | undefined;
 
 before(async () => {
   home = mkdtempSync(join(tmpdir(), 'dsh-pet-standalone-'));
   savedHome = process.env.DSH_HOME;
   savedElectron = process.env.DSH_PET_ELECTRON_PATH;
+  savedClaude = process.env.DSH_PET_CLAUDE;
+  // dsh-pet-claude: this suite tests the generic standalone host, which has no session
+  // events. Keep the Claude source off so it never reads this machine's real sessions.
+  process.env.DSH_PET_CLAUDE = 'off';
   process.env.DSH_HOME = home;
   // 指向一个真实存在的可执行文件：万一走到拉起分支也不会真的下载 Electron
   process.env.DSH_PET_ELECTRON_PATH = process.execPath;
@@ -70,6 +75,8 @@ after(async () => {
   else process.env.DSH_HOME = savedHome;
   if (savedElectron === undefined) delete process.env.DSH_PET_ELECTRON_PATH;
   else process.env.DSH_PET_ELECTRON_PATH = savedElectron;
+  if (savedClaude === undefined) delete process.env.DSH_PET_CLAUDE;
+  else process.env.DSH_PET_CLAUDE = savedClaude;
   rmSync(home, { recursive: true, force: true });
 });
 
@@ -96,7 +103,7 @@ describe('插件宿主半边在独立模式下跑起来了', () => {
       sections: Record<string, { counter: number; data: unknown }>;
       pets: Record<string, unknown>;
     };
-    assert.deepEqual(Object.keys(body.sections).sort(), ['balance', 'notify', 'workStatus']);
+    assert.deepEqual(Object.keys(body.sections).sort(), ['balance', 'claudeSessions', 'notify', 'workStatus']);
     assert.equal(body.sections.balance?.counter, 0);
     assert.equal(body.sections.balance?.data, null);
     assert.deepEqual(body.pets, {});
