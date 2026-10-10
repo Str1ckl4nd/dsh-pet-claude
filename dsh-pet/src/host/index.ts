@@ -1221,14 +1221,16 @@ export function apply(ctx: any): void {
   // changed: every write advances the counter, and the renderer replays on it.
   // DSH_PET_CLAUDE=off turns the Claude source off (the generic standalone tests do).
   if (ctx.standalone === true && process.env.DSH_PET_CLAUDE !== 'off') {
+    const lang = defaultLang();
     ctx.effect(
       () =>
         startClaudeSessions({
           userRoot,
           packageRoot: PACKAGE_ROOT,
-          lang: defaultLang(),
+          lang,
           log: (message: string) => ctx.logger?.info?.(message),
-          onCards: (cards) => state.writeSection('claudeSessions', { cards }),
+          // lang rides along for the panel's own words ("no sessions", "3 sessions").
+          onCards: (cards) => state.writeSection('claudeSessions', { cards, lang }),
           onAggregate: (a) => state.writeSection('workStatus', { state: a.state, task: a.task }),
         }),
       'dsh-pet-claude: Claude Code sessions',

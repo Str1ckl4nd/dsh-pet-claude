@@ -153,6 +153,13 @@
       .pet-badge.is-success .pet-badge-dot {
         background: #30a46c;
       }
+      /* No session at all: the badge stays and says so, dimmed. */
+      .pet-badge.is-empty {
+        color: rgba(43, 43, 43, 0.6);
+      }
+      .pet-badge.is-empty .pet-badge-dot {
+        background: #c4c9d0;
+      }
       /* dsh-pet-claude: the panel that pops on success / failure / approval.
          Rows are clickable and jump to that session in the Claude app. */
       /* Hidden with display, not opacity: an opacity-0 flex child still takes
@@ -201,6 +208,12 @@
       }
       .pet-panel-row:hover {
         background: rgba(0, 0, 0, 0.06);
+      }
+      .pet-panel-row.is-empty {
+        cursor: default;
+      }
+      .pet-panel-row.is-empty:hover {
+        background: none;
       }
       .pet-panel-dot {
         flex: 0 0 auto;

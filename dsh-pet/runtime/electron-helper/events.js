@@ -241,8 +241,10 @@ function applySayLeaf(petId, leaf) {
 /** dsh-pet-claude: the Claude Code session board → every pet's badge and panel. */
 function applyClaudeSessionsLeaf(leaf) {
   const cards = leaf && leaf.data && Array.isArray(leaf.data.cards) ? leaf.data.cards : [];
+  const lang = leaf && leaf.data && leaf.data.lang === 'en' ? 'en' : 'zh';
   for (const s of sprites) {
     s.sessionCards = cards;
+    s.sessionLang = lang;
     s.renderBubble();
   }
 }

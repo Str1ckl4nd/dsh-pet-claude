@@ -1185,9 +1185,10 @@ class PetSprite {
       { label: '重载配置', action: 'reload' },
     );
     /* dsh-pet-claude */ const cards = Array.isArray(this.sessionCards) ? this.sessionCards : [];
+    const words = this.sessionWords();
     const sessions = cards.length
-      ? [{ label: '会话状态', children: cards.map((c) => ({ label: c.name + ' — ' + c.detail })) }]
-      : [{ label: '会话状态', children: [{ label: '(没有活跃会话)' }] }];
+      ? [{ label: words.menu, children: cards.map((c) => ({ label: c.name + ' — ' + c.detail })) }]
+      : [{ label: words.menu, children: [{ label: words.none }] }];
     const tree = sessions.concat(tools, S.buildMenuTree(this.animations));
     if (!tree.length) return;
     this.menuOpen = true;
@@ -1360,19 +1361,25 @@ class PetSprite {
     return cards.filter((c) => !(c.mood === 'success' && this.dismissed.has(c.link + '@' + c.doneAt)));
   }
 
+  // The panel's own words, in the language the host labels the sessions in.
+  sessionWords() {
+    const lang = this.sessionLang || ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+    return lang === 'en'
+      ? { menu: 'Sessions', none: 'No sessions', count: (n) => n + ' sessions' }
+      : { menu: '会话状态', none: '没有会话', count: (n) => n + ' 个会话' };
+  }
+
   renderBadge() {
     if (!this.badge) return;
     const cards = this.visibleCards();
-    if (!cards.length) {
-      this.badge.classList.remove('is-on');
-      this.liftBubble();
-      return;
-    }
+    const words = this.sessionWords();
     const hasError = cards.some((c) => c && c.mood === 'error');
     const hasDone = cards.some((c) => c && c.mood === 'success');
     this.badge.classList.toggle('is-error', hasError);
     this.badge.classList.toggle('is-success', !hasError && hasDone);
-    this.badgeText.textContent = cards.length === 1 ? cards[0].name : cards.length + ' 个会话';
+    // With no session at all the badge stays and says so, rather than vanishing.
+    this.badge.classList.toggle('is-empty', !cards.length);
+    this.badgeText.textContent = !cards.length ? words.none : cards.length === 1 ? cards[0].name : words.count(cards.length);
     this.badge.classList.add('is-on');
     this.liftBubble();
   }
@@ -1397,7 +1404,10 @@ class PetSprite {
     if (!this.panel) return;
     const cards = this.visibleCards();
     if (!cards.length) {
-      if (this.panelOpen) this.closePanel();
+      // The list just emptied: fold it away. Opened by hand with nothing on
+      // it, it stays and says there is no session.
+      if (this.panelOpen && Object.keys(this.prevMoods).length) this.closePanel();
+      else if (this.panelOpen) this.refreshPanel();
       this.prevMoods = {};
       return;
     }
@@ -1431,6 +1441,16 @@ class PetSprite {
   buildPanel() {
     const cards = this.visibleCards();
     this.panel.innerHTML = '';
+    if (!cards.length) {
+      const row = document.createElement('div');
+      row.className = 'pet-panel-row is-empty';
+      const text = document.createElement('span');
+      text.className = 'pet-panel-detail';
+      text.textContent = this.sessionWords().none;
+      row.appendChild(text);
+      this.panel.appendChild(row);
+      return;
+    }
     for (const c of cards) {
       const row = document.createElement('div');
       row.className = 'pet-panel-row';
