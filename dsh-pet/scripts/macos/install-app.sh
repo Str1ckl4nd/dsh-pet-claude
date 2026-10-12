@@ -7,7 +7,7 @@
 #
 # Installs, for the current user only:
 #   ~/Applications/Claude 会话宠物.app       bring the pet up (Spotlight, Launchpad, Dock)
-#   ~/Applications/关闭 Claude 会话宠物.app  close it until the next login or "bring up"
+#   ~/Applications/关闭 Claude 会话宠物.app  close it until the next login or "Claude 会话宠物"
 #   ~/Library/LaunchAgents/<label>.plist     starts the pet at login and restarts it if
 #                                            it crashes; a clean close stays closed
 # Logs go to ~/Library/Logs/dsh-pet-claude.log.
@@ -122,11 +122,11 @@ else
 fi'
 
 make_app "$QUIT_APP" quit-pet "$LABEL.quit" "关闭 Claude 会话宠物" '
-# Close the pet: ask it to shut down, then unload the agent so it is not restarted.
-# It comes back at the next login, or with "Claude 会话宠物".
-curl -s -m 3 -X POST http://127.0.0.1:3080/shutdown >/dev/null 2>&1 || true
-sleep 1
-launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true'
+# Close the pet: it shuts down cleanly, so launchd leaves it stopped (it only
+# restarts a crash). The agent stays loaded, so "Claude 会话宠物" brings it back
+# at once — unloading it instead made the next start wait out launchd'"'"'s throttle.
+curl -s -m 3 -X POST http://127.0.0.1:3080/shutdown >/dev/null 2>&1 \
+  || launchctl kill TERM "$DOMAIN/$LABEL" 2>/dev/null || true'
 
 # --- (re)start it now ---------------------------------------------------------
 # bootout returns before the old instance is gone; bootstrapping over it fails
