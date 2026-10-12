@@ -223,7 +223,11 @@ function probePrimaryScale() {
 let PRIMARY_SCALE = 0;
 /** 实际生效的强制缩放（0 = 未启用，坐标系维持修复前的逐屏 DIP） */
 let FORCED_SCALE = 0;
-if (!DPI_PROBE && process.env.DSH_PET_FORCE_DSF !== '0') {
+// dsh-pet-claude: Windows only. The fix above linearises Windows' per-monitor
+// physical pixels. macOS lays windows out in points whatever the scale factor,
+// so forcing 1 there only renders at 1x while petScale() doubles the pet on a
+// Retina screen: twice the size, and a window too big to drag up to the top.
+if (!DPI_PROBE && process.env.DSH_PET_FORCE_DSF !== '0' && process.platform === 'win32') {
   PRIMARY_SCALE = readCachedPrimaryScale() || probePrimaryScale();
   const override = Number(process.env.DSH_PET_FORCE_DSF);
   const forced = Number.isFinite(override) && override > 0 ? override : PRIMARY_SCALE > 0 ? 1 : 0;
@@ -426,6 +430,11 @@ function createPetWindows() {
       skipTaskbar: true,
       resizable: false,
       hasShadow: false,
+      // dsh-pet-claude (macOS): the window holds empty room above the pet for its
+      // bubble and panel. macOS keeps windows below the menu bar, which stopped
+      // the pet well short of the top of the screen; a frameless window with this
+      // set goes exactly where it is put. No effect on other platforms.
+      enableLargerThanScreen: true,
       // 可聚焦：对话输入框/菜单需要窗口焦点才能打字（focusable:false 会让输入框永远无法聚焦）。
       // 别把这里当成黑屏的无关项：可聚焦 + 已聚焦本身就是 DWM 视频黑屏的四项触发条件之一（见文件头），
       // 而 show() 出来就是聚焦状态——真正在挡的是「默认整窗穿透」+「小窗几乎不可能完整遮挡视频窗」
