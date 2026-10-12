@@ -20,7 +20,8 @@ pnpm run standalone            # http://127.0.0.1:3080/dsh-pet-7340/
 
 - `DSH_PET_CLAUDE=off`：关闭 Claude Code 会话源，回到上游行为。
 - `DSH_PET_CLAUDE_LANG=zh|en`：标签语言，默认跟随系统。
-- 只在独立模式生效，在 DSH 里运行时仍按上游逻辑工作。只列出 Claude 桌面应用里的会话。在 Windows 上实测，macOS 路径已写但未测试。
+- 只在独立模式生效，在 DSH 里运行时仍按上游逻辑工作。只列出 Claude 桌面应用里的会话。Windows 与 macOS 上实测。
+- macOS 上想当应用用：构建后运行 `sh scripts/macos/install-app.sh`，会装上「Claude 会话宠物」（Spotlight/启动台可打开）和「关闭 Claude 会话宠物」，并在登录时自动启动。卸载加 `--uninstall`。回到会话算已读需要 Xcode 命令行工具（`xcode-select --install`）。
 - 许可与上游相同：代码 MIT，动画素材非商用（见下文）。
 
 以下为上游 README 原文。

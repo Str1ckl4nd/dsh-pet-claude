@@ -734,15 +734,17 @@ function createArrivals(file: string): { get: (hostId: string) => number; mark: 
 }
 
 /**
- * fgwatch.exe (Windows): reports the foreground process — once at start, then
- * only on change — by subscribing to the OS foreground-change event and
- * sleeping otherwise. Built here on first use from src/host/fgwatch.cs with the
- * C# compiler that ships with Windows; nothing is downloaded.
+ * fgwatch: reports the foreground app — once at start, then only on change —
+ * by subscribing to the OS's own "app switched" event and sleeping otherwise.
+ * Built here on first use with a compiler the OS already has; nothing is
+ * downloaded. Windows: src/host/fgwatch.cs with the .NET Framework's csc.exe.
+ * macOS: src/host/fgwatch.swift with swiftc from the Xcode Command Line Tools.
  */
 function buildFgwatch(userRoot: string, packageRoot: string, log: (m: string) => void): Promise<string | null> {
-  if (process.platform !== 'win32') return Promise.resolve(null);
-  const src = join(packageRoot, 'src', 'host', 'fgwatch.cs');
-  const exe = join(userRoot, 'fgwatch.exe');
+  const mac = process.platform === 'darwin';
+  if (process.platform !== 'win32' && !mac) return Promise.resolve(null);
+  const src = join(packageRoot, 'src', 'host', mac ? 'fgwatch.swift' : 'fgwatch.cs');
+  const exe = join(userRoot, mac ? 'fgwatch' : 'fgwatch.exe');
   if (!existsSync(src)) return Promise.resolve(null);
   try {
     if (existsSync(exe) && statSync(exe).mtimeMs >= statSync(src).mtimeMs) return Promise.resolve(exe);
@@ -750,8 +752,15 @@ function buildFgwatch(userRoot: string, packageRoot: string, log: (m: string) =>
     // fall through and rebuild
   }
   const csc = join(process.env.WINDIR ?? 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe');
-  if (!existsSync(csc)) {
-    log('claude: C# compiler not found; coming back to a session will not mark it read');
+  // macOS: only a real toolchain (Command Line Tools or Xcode) — calling the
+  // /usr/bin/swiftc stub without one pops up the "install developer tools" dialog.
+  const swiftc = [
+    '/Library/Developer/CommandLineTools/usr/bin/swiftc',
+    '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc',
+  ].find((p) => existsSync(p));
+  const compiler = mac ? (swiftc ?? '') : csc;
+  if (!compiler || !existsSync(compiler)) {
+    log('claude: no ' + (mac ? 'Swift' : 'C#') + ' compiler found; coming back to a session will not mark it read');
     return Promise.resolve(null);
   }
   try {
@@ -759,8 +768,11 @@ function buildFgwatch(userRoot: string, packageRoot: string, log: (m: string) =>
   } catch {
     return Promise.resolve(null);
   }
+  // macOS goes through xcrun, which hands swiftc the SDK; called bare it cannot load the standard library.
+  const run = mac ? '/usr/bin/xcrun' : compiler;
+  const args = mac ? ['swiftc', '-O', '-o', exe, src] : ['-nologo', '-target:exe', '-optimize+', '-out:' + exe, src];
   return new Promise((resolve) => {
-    execFile(csc, ['-nologo', '-target:exe', '-optimize+', '-out:' + exe, src], { windowsHide: true }, (err) => {
+    execFile(run, args, { windowsHide: true, timeout: 300_000 }, (err) => {
       if (err) {
         log('claude: building fgwatch failed: ' + err.message);
         resolve(null);
